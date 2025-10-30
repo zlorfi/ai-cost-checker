@@ -1,230 +1,147 @@
 # AI API Cost Tracker
 
-A sleek, modern dashboard for tracking your monthly OpenAI and Anthropic API usage costs. Built with Svelte + Tailwind CSS, optimized for Docker deployment on your local LAN.
+A Svelte + Vite dashboard that surfaces OpenAI and Anthropic cost data through a lightweight Node/Express proxy. The app is optimised for Docker deployment and includes client-side caching so common views load instantly.
 
 ## Features
 
-- Real-time cost tracking for OpenAI and Anthropic APIs
-- Clean, responsive dashboard interface
-- Historical data visualization
-- Dark mode support
-- Docker-ready for easy deployment on local network
-- Lightweight and fast with Svelte
+- OpenAI and Anthropic cost aggregation via a secure proxy (`server.js`)
+- LocalStorage-based caching (5 min TTL) to minimise repeat API calls
+- Responsive dashboard with daily and monthly cost charts
+- Graceful error states when keys are missing or providers time out
+- Docker Compose stack for one-command deployment
 
 ## Tech Stack
 
-- **Frontend Framework**: Svelte + Vite
-- **CSS Framework**: Tailwind CSS
-- **Component Library**: shadcn-svelte compatible
-- **Containerization**: Docker & Docker Compose
+- **Frontend**: Svelte, Vite, Tailwind CSS, Chart.js
+- **Backend proxy**: Node.js (Express, native `fetch`)
+- **Tooling**: TypeScript support, PostCSS, Tailwind Merge
+- **Containerisation**: Docker & Docker Compose
 
-## Prerequisites
+## Requirements
 
-- Node.js 20+ (for local development)
-- Docker & Docker Compose (for containerized deployment)
+- Node.js 20+ (local development)
+- Docker & Docker Compose (for containerised deploys)
 
-## Quick Start
+## Environment Variables
 
-### Local Development
+Create a `.env` file (or update the existing one) before running the app. Example:
 
-1. **Install dependencies**
+```env
+# API keys
+VITE_OPENAI_API_KEY=sk-...
+VITE_ANTHROPIC_API_KEY=sk-ant-...
+
+# Optional overrides
+PORT=3001          # Express proxy port
+VITE_PORT=5173     # Vite/Serve port
+VITE_API_PROXY_URL=http://localhost:3001
+```
+
+> ℹ️ `.dockerignore` excludes `.env`, but `docker-compose.yml` mounts it at runtime, so the keys are still available inside containers.
+
+## Local Development
+
+1. Install dependencies
    ```bash
    npm install
    ```
-
-2. **Set up environment variables**
+2. Copy and edit environment variables
    ```bash
    cp .env.example .env
-   # Edit .env and add your API keys
+   # then add/update your keys
    ```
-
-3. **Run the application**
-
-   **Option A: Run both frontend and backend together (recommended)**
+3. Start both proxy and frontend (recommended)
    ```bash
    npm run dev:all
    ```
+   - Vite dev server: `http://localhost:5173`
+   - API proxy: `http://localhost:3001`
 
-   This starts:
-   - Frontend (Vite) at `http://localhost:5173`
-   - Backend proxy server at `http://localhost:3001`
+   Or start them separately with `npm run server` and `npm run dev`.
 
-   **Option B: Run separately**
+The browser cache stores the most recent summary, monthly, and daily data for 5 minutes. Refreshing within that window reuses cached results unless the proxy configuration changes.
+
+## Docker Deployment
+
+1. Ensure `.env` contains valid keys (same as local dev).
+2. Build and start the stack
    ```bash
-   # Terminal 1 - Start the proxy server
-   npm run server
-
-   # Terminal 2 - Start the frontend
-   npm run dev
+   docker-compose up -d --build
    ```
-
-**Important**: The proxy server is required to avoid CORS errors when calling OpenAI and Anthropic APIs from the browser.
-
-### Docker Deployment (Production)
-
-1. **Ensure your `.env` file has API keys**
+3. Visit the dashboard:
+   - Host machine: `http://localhost:5173`
+   - Other LAN devices: `http://<HOST_IP>:5173`
+4. Useful commands
    ```bash
-   cp .env.example .env
-   # Edit .env and add your API keys
-   ```
-
-2. **Build and run with Docker Compose**
-   ```bash
-   docker-compose up -d
-   ```
-
-   This starts:
-   - **Backend proxy** at `http://localhost:3001` (handles API calls)
-   - **Frontend** at `http://localhost:5173`
-
-3. **Access the dashboard**
-   - From the host machine: `http://localhost:5173`
-   - From other devices on LAN: `http://YOUR_SERVER_IP:5173`
-
-4. **View logs**
-   ```bash
-   docker-compose logs -f
-   ```
-
-5. **Stop services**
-   ```bash
-   docker-compose down
+   docker-compose logs -f       # stream logs
+   docker-compose down          # stop containers
    ```
 
 ## Project Structure
 
 ```
 ai-cost-checker/
+├── docker-compose.yml          # Frontend + proxy services
+├── Dockerfile                  # Multi-stage build for production
+├── server.js                   # Express proxy for provider APIs
 ├── src/
-│   ├── lib/
-│   │   ├── Dashboard.svelte    # Main dashboard component
-│   │   └── utils.ts            # Utility functions
-│   ├── App.svelte              # Root component
-│   ├── main.js                 # App entry point
-│   └── app.css                 # Tailwind directives
-├── public/                     # Static assets
-├── Dockerfile                  # Production Docker config
-├── docker-compose.yml          # Docker Compose configuration
-├── vite.config.js             # Vite configuration
-├── tailwind.config.js         # Tailwind CSS configuration
-└── package.json               # Dependencies
+│   ├── App.svelte              # Root Svelte component
+│   ├── main.js                 # Vite entry point
+│   ├── app.css                 # Tailwind directives
+│   └── lib/
+│       ├── Dashboard.svelte    # Dashboard page
+│       ├── components/         # Chart components
+│       ├── services/           # OpenAI/Anthropic/cost tracker services
+│       └── utils.ts            # Shared helpers
+└── public/                     # Static assets
 ```
 
-## Configuration
+## Available npm Scripts
 
-### Vite Server Settings
+- `npm run dev` – Vite dev server only
+- `npm run server` – Express proxy only
+- `npm run dev:all` – Proxy + Vite concurrently
+- `npm run build` – Production build
+- `npm run preview` – Preview the production build locally
 
-The Vite dev server is configured to listen on `0.0.0.0:5173` for LAN access. See [vite.config.js](vite.config.js#L8-L11).
+## Data Caching Behaviour
 
-### Environment Variables
+- Summary, monthly, and daily responses are cached in `localStorage` with a 5‑minute TTL.
+- Cache keys are tied to the proxy configuration (which providers are enabled), so updating API keys or toggling services invalidates stored data.
+- To force a refresh, clear browser storage or wait for the TTL to expire.
 
-Create a `.env` file with your API keys:
+## Troubleshooting
 
-```env
-VITE_OPENAI_API_KEY=your_openai_api_key_here
-VITE_ANTHROPIC_API_KEY=your_anthropic_api_key_here
-```
+- **“No API keys configured”** – Confirm `.env` includes `VITE_OPENAI_API_KEY` or `VITE_ANTHROPIC_API_KEY`, then rebuild/restart the stack.
+- **504 Gateway timeout** – The upstream provider timed out. Refresh after a short delay; cached data remains available until a fresh fetch succeeds.
+- **Different ports** – Set `PORT`/`VITE_PORT` in `.env` and rebuild (`docker-compose up --build`) so both proxy and frontend pick up the new values.
 
-## Available Scripts
+## API Endpoints Used
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build locally
+- **OpenAI**: `GET /v1/organization/costs`
+- **Anthropic**: `GET /v1/organizations/cost_report` and `GET /v1/organizations/usage_report/messages`
 
-## Docker Commands
+The browser always calls the local proxy (`server.js`), which injects the API keys server-side to keep credentials out of the client bundle.
 
-```bash
-# Build and start containers
-docker-compose up -d
+### OpenAI requirements
 
-# View logs
-docker-compose logs -f
+1. Generate an API key from the [OpenAI platform](https://platform.openai.com/api-keys).
+2. Ensure the key has organisation billing access (project-scoped keys are insufficient).
+3. Set `VITE_OPENAI_API_KEY` in `.env`, then restart the proxy.
 
-# Stop containers
-docker-compose down
+### Anthropic requirements
 
-# Rebuild after changes
-docker-compose up -d --build
-```
+1. Create an Admin API key in the [Anthropic Console](https://console.anthropic.com/) (admin role required).
+2. Set `VITE_ANTHROPIC_API_KEY` in `.env`, then restart the proxy.
 
-## Network Access
-
-To access from other devices on your LAN:
-
-1. Find your server's IP address:
-   ```bash
-   # On Linux/Mac
-   ip addr show
-   # or
-   ifconfig
-
-   # On Windows
-   ipconfig
-   ```
-
-2. Access the dashboard from any device on the same network:
-   ```
-   http://YOUR_SERVER_IP:5173
-   ```
-
-## Customization
-
-### Adding Components
-
-The project is set up to work with shadcn-svelte components. To add components:
-
-```bash
-npx shadcn-svelte@latest add button
-```
-
-### Styling
-
-Tailwind CSS is configured and ready to use. Edit [tailwind.config.js](tailwind.config.js) to customize the theme.
-
-## Features Implemented
-
-- [x] Connect to actual OpenAI and Anthropic APIs
-- [x] Add charts for visual data representation
-- [x] Interactive line chart showing daily costs over 30 days
-- [x] Bar chart for monthly cost comparison
-- [x] Automatic fallback to demo data when API keys are not configured
-- [x] Loading states and error handling
-
-## API Integration
-
-The dashboard integrates with:
-
-- **OpenAI API**: Uses the `/v1/organization/costs` endpoint to fetch actual billing costs
-- **Anthropic API**: Uses `/v1/organizations/cost_report` and `/v1/organizations/usage_report/messages` endpoints
-
-### Setting Up API Access
-
-#### OpenAI
-The app uses OpenAI's **Organization Costs API** endpoint (`/v1/organization/costs`).
-
-1. Get your API key from [OpenAI Platform](https://platform.openai.com/api-keys)
-2. Add to your `.env` file: `VITE_OPENAI_API_KEY=sk-...`
-3. **Important**: Your API key must have access to organization-level billing data
-
-**Troubleshooting**: If you see incorrect costs:
-- Check that your API key has organization access permissions
-- Verify you're using a regular API key (not a project-scoped key)
-- Check the browser console (F12) for detailed error messages and API responses
-- The costs endpoint returns data directly in dollars
-
-#### Anthropic
-1. You need an **Admin API key** (not a regular API key) to access cost/usage endpoints
-2. Get it from [Anthropic Console](https://console.anthropic.com/) (requires admin role)
-3. Add to your `.env` file: `VITE_ANTHROPIC_API_KEY=sk-ant-admin...`
-
-**Note**: Without API keys, the dashboard will display demo data for demonstration purposes.
+> Without at least one valid key, the dashboard will surface a configuration error instead of sample data.
 
 ## Charts and Visualizations
 
 The dashboard includes:
 - **Daily Cost Trends**: Line chart showing costs over the last 30 days
-- **Monthly Comparison**: Stacked bar chart comparing OpenAI vs Anthropic costs by month
-- **Historical Table**: Detailed breakdown of monthly costs
+- **Monthly Comparison**: Grouped bar chart comparing OpenAI vs Anthropic costs by month
+- **Historical Table**: Tabular monthly breakdown with totals
 
 ## Future Enhancements
 
