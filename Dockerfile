@@ -26,8 +26,8 @@ RUN npm install -g serve
 # Copy built files from builder
 COPY --from=builder /app/dist ./dist
 
-# Expose port
+# Expose port (default Vite port - actual value can be overridden via VITE_PORT)
 EXPOSE 5173
 
-# Run the app
-CMD ["serve", "-s", "dist", "-l", "5173", "--no-clipboard"]
+# Run the app and honor VITE_PORT when provided
+CMD ["sh", "-c", "serve -s dist -l ${VITE_PORT:-5173} --no-clipboard"]

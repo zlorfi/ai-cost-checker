@@ -29,17 +29,18 @@ export interface DailyCostData {
 export class CostTrackerService {
   private openaiService: OpenAIService | null = null;
   private anthropicService: AnthropicService | null = null;
+  private openaiConfigured = false;
+  private anthropicConfigured = false;
 
   /**
    * Initialize services with API keys
    */
-  init(openaiKey?: string, anthropicKey?: string) {
-    if (openaiKey) {
-      this.openaiService = new OpenAIService(openaiKey);
-    }
-    if (anthropicKey) {
-      this.anthropicService = new AnthropicService(anthropicKey);
-    }
+  init(config: { openai: boolean; anthropic: boolean }) {
+    this.openaiConfigured = config.openai;
+    this.anthropicConfigured = config.anthropic;
+
+    this.openaiService = this.openaiConfigured ? new OpenAIService() : null;
+    this.anthropicService = this.anthropicConfigured ? new AnthropicService() : null;
   }
 
   /**
@@ -148,8 +149,8 @@ export class CostTrackerService {
    */
   isConfigured(): { openai: boolean; anthropic: boolean } {
     return {
-      openai: this.openaiService !== null,
-      anthropic: this.anthropicService !== null,
+      openai: this.openaiConfigured,
+      anthropic: this.anthropicConfigured,
     };
   }
 }

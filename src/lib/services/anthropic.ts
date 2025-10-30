@@ -36,11 +36,9 @@ interface AnthropicUsageData {
 }
 
 export class AnthropicService {
-  private adminApiKey: string;
   private proxyUrl: string;
 
-  constructor(adminApiKey: string) {
-    this.adminApiKey = adminApiKey;
+  constructor() {
     // Use env variable or default to localhost:3001
     const baseUrl = import.meta.env.VITE_API_PROXY_URL || 'http://localhost:3001';
     this.proxyUrl = `${baseUrl}/api/anthropic`;
@@ -65,9 +63,7 @@ export class AnthropicService {
       throw new Error(`Anthropic API error: ${response.status} ${errorText}`);
     }
 
-    const data = await response.json();
-    console.log('Anthropic cost data received:', JSON.stringify(data, null, 2));
-    return data;
+    return await response.json();
   }
 
   /**

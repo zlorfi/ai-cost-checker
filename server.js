@@ -132,6 +132,16 @@ app.get('/api/anthropic/usage', async (req, res) => {
   }
 });
 
+// Configuration endpoint so the frontend can detect which services are available
+app.get('/api/config', (req, res) => {
+  res.json({
+    openaiConfigured: Boolean(process.env.VITE_OPENAI_API_KEY),
+    anthropicConfigured: Boolean(process.env.VITE_ANTHROPIC_API_KEY),
+    apiProxyUrl: process.env.VITE_API_PROXY_URL || `http://localhost:${PORT}`,
+    port: PORT,
+  });
+});
+
 app.listen(PORT, () => {
   console.log(`\n✅ API Proxy Server running on http://localhost:${PORT}`);
   console.log(`   OpenAI configured: ${!!process.env.VITE_OPENAI_API_KEY}`);

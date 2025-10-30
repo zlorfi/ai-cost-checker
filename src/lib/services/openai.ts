@@ -29,11 +29,9 @@ interface DailyCost {
 }
 
 export class OpenAIService {
-  private apiKey: string;
   private proxyUrl: string;
 
-  constructor(apiKey: string) {
-    this.apiKey = apiKey;
+  constructor() {
     // Use env variable or default to localhost:3001
     const baseUrl = import.meta.env.VITE_API_PROXY_URL || 'http://localhost:3001';
     this.proxyUrl = `${baseUrl}/api/openai`;

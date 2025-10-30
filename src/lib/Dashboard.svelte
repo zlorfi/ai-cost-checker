@@ -11,47 +11,38 @@
   let totalCost = 0;
   let loading = true;
   let error = null;
-  let useMockData = true;
 
   // Data for charts
   let monthlyData = [];
   let dailyData = [];
-
-  // Mock data for demonstration (used when API keys are not configured)
-  const mockMonthlyData = [
-    { month: 'Aug', openai: 52.80, anthropic: 38.90 },
-    { month: 'Sep', openai: 61.30, anthropic: 45.20 },
-    { month: 'Oct', openai: 48.90, anthropic: 41.60 },
-  ];
-
-  const mockDailyData = Array.from({ length: 30 }, (_, i) => {
-    const date = new Date();
-    date.setDate(date.getDate() - (29 - i));
-    return {
-      date: date.toISOString().split('T')[0],
-      openai: Math.random() * 5 + 1,
-      anthropic: Math.random() * 4 + 0.5,
-      total: 0
-    };
-  }).map(d => ({ ...d, total: d.openai + d.anthropic }));
+  const proxyBaseUrl = import.meta.env.VITE_API_PROXY_URL || 'http://localhost:3001';
 
   onMount(async () => {
-    // Initialize cost tracker with API keys from environment
-    const openaiKey = import.meta.env.VITE_OPENAI_API_KEY;
-    const anthropicKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
+    try {
+      const response = await fetch(`${proxyBaseUrl}/api/config`);
 
-    if (openaiKey || anthropicKey) {
-      costTracker.init(openaiKey, anthropicKey);
-      const configured = costTracker.isConfigured();
-
-      if (configured.openai || configured.anthropic) {
-        useMockData = false;
-        await loadRealData();
-      } else {
-        loadMockData();
+      if (!response.ok) {
+        throw new Error('Failed to load configuration from API proxy');
       }
-    } else {
-      loadMockData();
+
+      const config = await response.json();
+
+      costTracker.init({
+        openai: config.openaiConfigured,
+        anthropic: config.anthropicConfigured,
+      });
+
+      if (!config.openaiConfigured && !config.anthropicConfigured) {
+        error = 'No API keys configured. Please add VITE_OPENAI_API_KEY and/or VITE_ANTHROPIC_API_KEY to your .env file.';
+        loading = false;
+        return;
+      }
+
+      await loadRealData();
+    } catch (err) {
+      console.error('Error loading configuration:', err);
+      error = 'Unable to load configuration from the API proxy. Please ensure the server is running.';
+      loading = false;
     }
   });
 
@@ -77,20 +68,9 @@
     } catch (err) {
       console.error('Error loading cost data:', err);
       error = err.message;
-      // Fallback to mock data on error
-      loadMockData();
     } finally {
       loading = false;
     }
-  }
-
-  function loadMockData() {
-    openaiCost = 73.45;
-    anthropicCost = 58.90;
-    totalCost = openaiCost + anthropicCost;
-    monthlyData = mockMonthlyData;
-    dailyData = mockDailyData;
-    loading = false;
   }
 
   function formatCurrency(amount) {
@@ -288,18 +268,13 @@
 
   <!-- Footer Note -->
   <footer class="mt-8 text-center text-sm text-slate-500 dark:text-slate-400">
-    {#if useMockData}
-      <p class="text-amber-600 dark:text-amber-400 font-medium mb-2">
-        Using demo data - Add API keys to .env file to see real costs
-      </p>
-    {/if}
     {#if error}
       <p class="text-red-600 dark:text-red-400 mb-2">
         Error loading data: {error}
       </p>
     {/if}
     <p>
-      {useMockData ? 'Demo data updated daily' : 'Cost data is updated in real-time via API integration'}
+      Cost data is updated in real-time via API integration
     </p>
   </footer>
 </div>
