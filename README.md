@@ -154,14 +154,59 @@ npx shadcn-svelte@latest add button
 
 Tailwind CSS is configured and ready to use. Edit [tailwind.config.js](tailwind.config.js) to customize the theme.
 
+## Features Implemented
+
+- [x] Connect to actual OpenAI and Anthropic APIs
+- [x] Add charts for visual data representation
+- [x] Interactive line chart showing daily costs over 30 days
+- [x] Bar chart for monthly cost comparison
+- [x] Automatic fallback to demo data when API keys are not configured
+- [x] Loading states and error handling
+
+## API Integration
+
+The dashboard integrates with:
+
+- **OpenAI API**: Uses the `/v1/organization/costs` endpoint to fetch actual billing costs
+- **Anthropic API**: Uses `/v1/organizations/cost_report` and `/v1/organizations/usage_report/messages` endpoints
+
+### Setting Up API Access
+
+#### OpenAI
+The app uses OpenAI's **Organization Costs API** endpoint (`/v1/organization/costs`).
+
+1. Get your API key from [OpenAI Platform](https://platform.openai.com/api-keys)
+2. Add to your `.env` file: `VITE_OPENAI_API_KEY=sk-...`
+3. **Important**: Your API key must have access to organization-level billing data
+
+**Troubleshooting**: If you see $0.00 but know you have costs:
+- Check that your API key has organization access permissions
+- Verify you're using a regular API key (not a project-scoped key)
+- Check the browser console (F12) for detailed error messages
+- The costs endpoint returns data in cents - the app automatically converts to dollars
+
+#### Anthropic
+1. You need an **Admin API key** (not a regular API key) to access cost/usage endpoints
+2. Get it from [Anthropic Console](https://console.anthropic.com/) (requires admin role)
+3. Add to your `.env` file: `VITE_ANTHROPIC_API_KEY=sk-ant-admin...`
+
+**Note**: Without API keys, the dashboard will display demo data for demonstration purposes.
+
+## Charts and Visualizations
+
+The dashboard includes:
+- **Daily Cost Trends**: Line chart showing costs over the last 30 days
+- **Monthly Comparison**: Stacked bar chart comparing OpenAI vs Anthropic costs by month
+- **Historical Table**: Detailed breakdown of monthly costs
+
 ## Future Enhancements
 
-- [ ] Connect to actual OpenAI and Anthropic APIs
-- [ ] Add charts for visual data representation
 - [ ] Export data to CSV/Excel
 - [ ] Set up cost alerts and budgets
 - [ ] Add usage breakdown by model
 - [ ] Implement authentication
+- [ ] Add date range selector
+- [ ] Support for more AI providers (Azure OpenAI, Google AI, etc.)
 
 ## License
 
