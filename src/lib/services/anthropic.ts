@@ -5,11 +5,22 @@
 
 interface AnthropicCostData {
   data: Array<{
-    date: string;
-    cost_usd: number;
-    workspace_id?: string;
+    starting_at: string;
+    ending_at: string;
+    results: Array<{
+      currency: string;
+      amount: string; // Note: This is a string, not a number!
+      workspace_id?: string;
+      description?: string;
+      cost_type?: string;
+      context_window?: string;
+      model?: string;
+      service_tier?: string;
+      token_type?: string;
+    }>;
   }>;
   has_more: boolean;
+  next_page?: string;
 }
 
 interface AnthropicUsageData {
@@ -26,58 +37,56 @@ interface AnthropicUsageData {
 
 export class AnthropicService {
   private adminApiKey: string;
-  private baseUrl = 'https://api.anthropic.com/v1/organizations';
-  private anthropicVersion = '2023-06-01';
+  private proxyUrl: string;
 
   constructor(adminApiKey: string) {
     this.adminApiKey = adminApiKey;
+    // Use env variable or default to localhost:3001
+    const baseUrl = import.meta.env.VITE_API_PROXY_URL || 'http://localhost:3001';
+    this.proxyUrl = `${baseUrl}/api/anthropic`;
   }
 
   /**
-   * Fetch cost report for a specific date range
+   * Fetch cost report via proxy server
    */
   async getCostReport(startDate: Date, endDate: Date): Promise<AnthropicCostData> {
     const startDateStr = startDate.toISOString();
     const endDateStr = endDate.toISOString();
 
-    const response = await fetch(
-      `${this.baseUrl}/cost_report?starting_at=${startDateStr}&ending_at=${endDateStr}&bucket_width=1d`,
-      {
-        headers: {
-          'anthropic-version': this.anthropicVersion,
-          'x-api-key': this.adminApiKey,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
+    const url = `${this.proxyUrl}/costs?starting_at=${startDateStr}&ending_at=${endDateStr}`;
+
+    console.log('Fetching Anthropic costs from proxy:', url);
+
+    const response = await fetch(url);
 
     if (!response.ok) {
-      throw new Error(`Anthropic API error: ${response.statusText}`);
+      const errorText = await response.text();
+      console.error('Anthropic API error:', response.status, errorText);
+      throw new Error(`Anthropic API error: ${response.status} ${errorText}`);
     }
 
-    return await response.json();
+    const data = await response.json();
+    console.log('Anthropic cost data received:', JSON.stringify(data, null, 2));
+    return data;
   }
 
   /**
-   * Fetch usage report for a specific date range
+   * Fetch usage report via proxy server
    */
   async getUsageReport(startDate: Date, endDate: Date): Promise<AnthropicUsageData> {
     const startDateStr = startDate.toISOString();
     const endDateStr = endDate.toISOString();
 
-    const response = await fetch(
-      `${this.baseUrl}/usage_report/messages?starting_at=${startDateStr}&ending_at=${endDateStr}&group_by[]=model&bucket_width=1d`,
-      {
-        headers: {
-          'anthropic-version': this.anthropicVersion,
-          'x-api-key': this.adminApiKey,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
+    const url = `${this.proxyUrl}/usage?starting_at=${startDateStr}&ending_at=${endDateStr}`;
+
+    console.log('Fetching Anthropic usage from proxy:', url);
+
+    const response = await fetch(url);
 
     if (!response.ok) {
-      throw new Error(`Anthropic API error: ${response.statusText}`);
+      const errorText = await response.text();
+      console.error('Anthropic API error:', response.status, errorText);
+      throw new Error(`Anthropic API error: ${response.status} ${errorText}`);
     }
 
     return await response.json();
@@ -93,7 +102,22 @@ export class AnthropicService {
 
     try {
       const costData = await this.getCostReport(startOfMonth, endOfMonth);
-      return costData.data.reduce((sum, entry) => sum + entry.cost_usd, 0);
+      if (!costData.data || !Array.isArray(costData.data)) {
+        console.warn('Invalid Anthropic cost data structure:', costData);
+        return 0;
+      }
+
+      const total = costData.data.reduce((sum, bucket) => {
+        // Sum all costs in the results array for this time bucket
+        const bucketTotal = bucket.results.reduce((bucketSum, result) => {
+          const cost = parseFloat(result.amount) || 0;
+          return bucketSum + cost;
+        }, 0);
+        return sum + bucketTotal;
+      }, 0);
+
+      console.log('Anthropic current month total:', total);
+      return total;
     } catch (error) {
       console.error('Error fetching Anthropic cost:', error);
       // Fallback to calculating from usage data
@@ -111,10 +135,26 @@ export class AnthropicService {
 
     try {
       const costData = await this.getCostReport(startDate, endDate);
-      return costData.data.map(entry => ({
-        date: entry.date,
-        cost: entry.cost_usd,
-      }));
+      if (!costData.data || !Array.isArray(costData.data)) {
+        console.warn('Invalid Anthropic daily cost data:', costData);
+        return [];
+      }
+
+      return costData.data.map(bucket => {
+        // Sum all costs in the results array for this time bucket
+        const totalCost = bucket.results.reduce((sum, result) => {
+          const cost = parseFloat(result.amount) || 0;
+          return sum + cost;
+        }, 0);
+
+        // Extract date from starting_at timestamp
+        const date = bucket.starting_at.split('T')[0];
+
+        return {
+          date,
+          cost: totalCost,
+        };
+      });
     } catch (error) {
       console.error('Error fetching Anthropic daily costs:', error);
       return [];
@@ -135,7 +175,23 @@ export class AnthropicService {
 
       try {
         const costData = await this.getCostReport(startOfMonth, endOfMonth);
-        const totalCost = costData.data.reduce((sum, entry) => sum + entry.cost_usd, 0);
+        if (!costData.data || !Array.isArray(costData.data)) {
+          console.warn('Invalid Anthropic monthly cost data:', costData);
+          costs.push({
+            month: date.toLocaleDateString('en-US', { month: 'short' }),
+            cost: 0,
+          });
+          continue;
+        }
+
+        const totalCost = costData.data.reduce((sum, bucket) => {
+          // Sum all costs in the results array for this time bucket
+          const bucketTotal = bucket.results.reduce((bucketSum, result) => {
+            const cost = parseFloat(result.amount) || 0;
+            return bucketSum + cost;
+          }, 0);
+          return sum + bucketTotal;
+        }, 0);
         const monthName = date.toLocaleDateString('en-US', { month: 'short' });
 
         costs.push({

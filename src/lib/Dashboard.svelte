@@ -19,11 +19,9 @@
 
   // Mock data for demonstration (used when API keys are not configured)
   const mockMonthlyData = [
-    { month: 'Jan', openai: 45.20, anthropic: 32.15 },
-    { month: 'Feb', openai: 52.80, anthropic: 38.90 },
-    { month: 'Mar', openai: 61.30, anthropic: 45.20 },
-    { month: 'Apr', openai: 48.90, anthropic: 41.60 },
-    { month: 'May', openai: 55.40, anthropic: 49.80 },
+    { month: 'Aug', openai: 52.80, anthropic: 38.90 },
+    { month: 'Sep', openai: 61.30, anthropic: 45.20 },
+    { month: 'Oct', openai: 48.90, anthropic: 41.60 },
   ];
 
   const mockDailyData = Array.from({ length: 30 }, (_, i) => {
@@ -70,7 +68,7 @@
 
       // Fetch historical data
       const [monthly, daily] = await Promise.all([
-        costTracker.getMonthlyData(6),
+        costTracker.getMonthlyData(3),
         costTracker.getDailyCosts(30)
       ]);
 
@@ -271,7 +269,7 @@
               </tr>
             </thead>
             <tbody>
-              {#each monthlyData as data}
+              {#each monthlyData.slice().reverse() as data}
                 <tr class="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
                   <td class="py-3 px-4 text-slate-900 dark:text-slate-100">{data.month}</td>
                   <td class="py-3 px-4 text-right text-slate-900 dark:text-slate-100">{formatCurrency(data.openai)}</td>

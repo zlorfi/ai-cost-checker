@@ -30,30 +30,28 @@ interface DailyCost {
 
 export class OpenAIService {
   private apiKey: string;
-  private baseUrl = 'https://api.openai.com/v1';
+  private proxyUrl: string;
 
   constructor(apiKey: string) {
     this.apiKey = apiKey;
+    // Use env variable or default to localhost:3001
+    const baseUrl = import.meta.env.VITE_API_PROXY_URL || 'http://localhost:3001';
+    this.proxyUrl = `${baseUrl}/api/openai`;
   }
 
   /**
-   * Fetch cost data using the new /organization/costs endpoint
+   * Fetch cost data using the proxy server
    */
   async getCosts(startDate: Date, endDate?: Date): Promise<OpenAICostData> {
     // Convert to Unix timestamp (seconds)
     const startTime = Math.floor(startDate.getTime() / 1000);
     const endTime = endDate ? Math.floor(endDate.getTime() / 1000) : Math.floor(Date.now() / 1000);
 
-    const url = `${this.baseUrl}/organization/costs?start_time=${startTime}&end_time=${endTime}&bucket_width=1d&limit=180`;
+    const url = `${this.proxyUrl}/costs?start_time=${startTime}&end_time=${endTime}`;
 
-    console.log('Fetching OpenAI costs from:', url);
+    console.log('Fetching OpenAI costs from proxy:', url);
 
-    const response = await fetch(url, {
-      headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-    });
+    const response = await fetch(url);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -140,15 +138,15 @@ export class OpenAIService {
 
   /**
    * Calculate total cost from cost data
-   * OpenAI returns costs in cents/smallest currency unit
+   * OpenAI returns costs directly in dollars
    */
   private calculateTotalCost(costData: OpenAICostData): number {
     let totalCost = 0;
 
     for (const bucket of costData.data) {
       for (const result of bucket.results) {
-        // OpenAI returns amounts in cents, convert to dollars
-        totalCost += result.amount.value / 100;
+        // OpenAI returns amounts directly in dollars
+        totalCost += result.amount.value;
       }
     }
 
@@ -167,8 +165,8 @@ export class OpenAIService {
 
       let bucketCost = 0;
       for (const result of bucket.results) {
-        // Convert from cents to dollars
-        bucketCost += result.amount.value / 100;
+        // OpenAI returns amounts directly in dollars
+        bucketCost += result.amount.value;
       }
 
       if (dailyMap.has(dateStr)) {

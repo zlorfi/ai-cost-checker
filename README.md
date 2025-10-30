@@ -38,31 +38,58 @@ A sleek, modern dashboard for tracking your monthly OpenAI and Anthropic API usa
    # Edit .env and add your API keys
    ```
 
-3. **Run development server**
+3. **Run the application**
+
+   **Option A: Run both frontend and backend together (recommended)**
    ```bash
+   npm run dev:all
+   ```
+
+   This starts:
+   - Frontend (Vite) at `http://localhost:5173`
+   - Backend proxy server at `http://localhost:3001`
+
+   **Option B: Run separately**
+   ```bash
+   # Terminal 1 - Start the proxy server
+   npm run server
+
+   # Terminal 2 - Start the frontend
    npm run dev
    ```
 
-   The app will be available at `http://localhost:5173`
+**Important**: The proxy server is required to avoid CORS errors when calling OpenAI and Anthropic APIs from the browser.
 
 ### Docker Deployment (Production)
 
-1. **Build and run with Docker Compose**
+1. **Ensure your `.env` file has API keys**
+   ```bash
+   cp .env.example .env
+   # Edit .env and add your API keys
+   ```
+
+2. **Build and run with Docker Compose**
    ```bash
    docker-compose up -d
    ```
 
-2. **Access the dashboard**
+   This starts:
+   - **Backend proxy** at `http://localhost:3001` (handles API calls)
+   - **Frontend** at `http://localhost:5173`
+
+3. **Access the dashboard**
    - From the host machine: `http://localhost:5173`
    - From other devices on LAN: `http://YOUR_SERVER_IP:5173`
 
-### Docker Deployment (Development Mode)
+4. **View logs**
+   ```bash
+   docker-compose logs -f
+   ```
 
-For development with hot-reload in Docker:
-
-```bash
-docker-compose --profile dev up ai-cost-checker-dev
-```
+5. **Stop services**
+   ```bash
+   docker-compose down
+   ```
 
 ## Project Structure
 
@@ -179,11 +206,11 @@ The app uses OpenAI's **Organization Costs API** endpoint (`/v1/organization/cos
 2. Add to your `.env` file: `VITE_OPENAI_API_KEY=sk-...`
 3. **Important**: Your API key must have access to organization-level billing data
 
-**Troubleshooting**: If you see $0.00 but know you have costs:
+**Troubleshooting**: If you see incorrect costs:
 - Check that your API key has organization access permissions
 - Verify you're using a regular API key (not a project-scoped key)
-- Check the browser console (F12) for detailed error messages
-- The costs endpoint returns data in cents - the app automatically converts to dollars
+- Check the browser console (F12) for detailed error messages and API responses
+- The costs endpoint returns data directly in dollars
 
 #### Anthropic
 1. You need an **Admin API key** (not a regular API key) to access cost/usage endpoints
