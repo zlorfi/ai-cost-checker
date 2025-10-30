@@ -2,6 +2,8 @@
 
 A Svelte + Vite dashboard that surfaces OpenAI and Anthropic cost data through a lightweight Node/Express proxy. The app is optimised for Docker deployment and includes client-side caching so common views load instantly.
 
+![AI API Cost Tracker screenshot](screenshot.png)
+
 ## Features
 
 - OpenAI and Anthropic cost aggregation via a secure proxy (`server.js`)
