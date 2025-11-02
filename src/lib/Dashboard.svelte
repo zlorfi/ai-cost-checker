@@ -1,21 +1,21 @@
-<script>
+<script lang="ts">
   import { onMount } from 'svelte';
-  import { costTracker } from './services/costTracker';
+  import { costTracker, type DailyCostData, type MonthlyData } from './services/costTracker';
   import LineChart from './components/LineChart.svelte';
   import BarChart from './components/BarChart.svelte';
 
-  let currentMonth = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  let currentMonth: string = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
-  let openaiCost = 0;
-  let anthropicCost = 0;
-  let totalCost = 0;
-  let loading = true;
-  let error = null;
+  let openaiCost: number = 0;
+  let anthropicCost: number = 0;
+  let totalCost: number = 0;
+  let loading: boolean = true;
+  let error: string | null = null;
 
   // Data for charts
-  let monthlyData = [];
-  let dailyData = [];
-  const proxyBaseUrl = import.meta.env.VITE_API_PROXY_URL || 'http://localhost:3001';
+  let monthlyData: MonthlyData[] = [];
+  let dailyData: DailyCostData[] = [];
+  const proxyBaseUrl: string = import.meta.env.VITE_API_PROXY_URL || 'http://localhost:3001';
 
   onMount(async () => {
     try {
@@ -25,7 +25,7 @@
         throw new Error('Failed to load configuration from API proxy');
       }
 
-      const config = await response.json();
+      const config = await response.json() as { openaiConfigured: boolean; anthropicConfigured: boolean };
 
       costTracker.init({
         openai: config.openaiConfigured,
@@ -41,12 +41,12 @@
       await loadRealData();
     } catch (err) {
       console.error('Error loading configuration:', err);
-      error = 'Unable to load configuration from the API proxy. Please ensure the server is running.';
+      error = err instanceof Error ? err.message : 'Unable to load configuration from the API proxy. Please ensure the server is running.';
       loading = false;
     }
   });
 
-  async function loadRealData() {
+  async function loadRealData(): Promise<void> {
     try {
       loading = true;
       error = null;
@@ -67,13 +67,13 @@
       dailyData = daily;
     } catch (err) {
       console.error('Error loading cost data:', err);
-      error = err.message;
+      error = err instanceof Error ? err.message : 'Failed to load cost data';
     } finally {
       loading = false;
     }
   }
 
-  function formatCurrency(amount) {
+  function formatCurrency(amount: number): string {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD'
